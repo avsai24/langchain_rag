@@ -1,51 +1,40 @@
-import yaml
-from langchain_community.document_loaders import WebBaseLoader
-from langchain_community.document_transformers import Html2TextTransformer
-from langchain_text_splitters import RecursiveCharacterTextSplitter
+from read_write import read_file
+from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_community.vectorstores import Chroma
+from langchain_chroma import Chroma
+import os
+from web_scraping import scrape_and_write_to_file , prepare_documents
 import logging
 
 logging.basicConfig(
     level=logging.INFO, 
     format="---------- %(levelname)s - %(message)s ----------", 
 )
+def embed_documents_with_chroma(documents, persist_directory):
+    
+    text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+    split_docs = text_splitter.split_documents(documents)
+    logging.info(f"completed text-splitter with length of {len(split_docs)}")
+    embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+    logging.info("embeddings created")  
+    Chroma.from_documents(split_docs, embeddings, persist_directory=persist_directory)
+    logging.info("embeddings stored in vectordb")
 
-def web_scrape():
-    with open("/Users/venkatasaiancha/Desktop/lanchain_rag/links.yaml", "r") as file:
-        data = yaml.safe_load(file)
-    urls = [entry for entry in data["links"]]
-    loader = WebBaseLoader(urls)
-    docs = loader.load()
-    return docs
-
-def cleaning(docs):
-    html_cleaner = Html2TextTransformer()
-    clean_docs = html_cleaner.transform_documents(docs)
-    return clean_docs
-
-def split_text(clean_docs):
-    text_splitter = RecursiveCharacterTextSplitter(
-    chunk_size=1000, chunk_overlap=200, add_start_index=True
-    )
-    all_splits = text_splitter.split_documents(clean_docs)
-    return all_splits
-
-def store_embeddings(splitted_docs):
-    embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-mpnet-base-v2")
-
-    vectorstore = Chroma.from_documents(splitted_docs, embeddings, persist_directory="/Users/venkatasaiancha/Desktop/lanchain_rag/chroma_db")
-
-def main():
-    logging.info("entered webscraping")
-    doccuments = web_scrape()
-    logging.info("entered cleaning")
-    cleaned_docs = cleaning(doccuments)
-    logging.info("entered text splitting")
-    splitted_docs = split_text(cleaned_docs)
-    logging.info("entered embeddings and storing in vectordb")
-    store_embeddings(splitted_docs)
-    logging.info("Embeddings stored successfully in ChromaDB")
+def main(links_file_path,base_dir,chroma_dir):
+    logging.info("started reading yaml file")
+    yaml_data = read_file(links_file_path)
+    logging.info("finished reading yaml file")
+    links = yaml_data.get("links", [])
+    logging.info(f"links found: {len(links)} and links are {links}")
+    scrape_and_write_to_file(links,base_dir)
+    logging.info("finished web scraping")
+    documents = prepare_documents(base_dir)
+    logging.info("doccuments created")
+    os.makedirs(chroma_dir, exist_ok=True)
+    embed_documents_with_chroma(documents, chroma_dir)
 
 if __name__ == "__main__":
-    main()
+    links_file_path = "/Users/venkatasaiancha/Desktop/lanchain_rag/links.yaml"
+    base_dir = "/Users/venkatasaiancha/Desktop/lanchain_rag/crawled_data" 
+    chroma_dir = "/Users/venkatasaiancha/Desktop/lanchain_rag/chroma_db"
+    main(links_file_path,base_dir,chroma_dir)

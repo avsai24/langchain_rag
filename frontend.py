@@ -10,7 +10,7 @@ logging.basicConfig(
     level=logging.INFO, 
     format="---------- %(levelname)s - %(message)s ----------", )
 
-embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-mpnet-base-v2")
+embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
 vectorstore = Chroma(persist_directory="/Users/venkatasaiancha/Desktop/lanchain_rag/chroma_db", embedding_function=embeddings)
 
 def model_name():
@@ -33,6 +33,7 @@ def render_sidebar():
         st.sidebar.write(st.session_state)
 
 def display_conversation_history():
+    logging.info("entered display_conversation history")
     for entry in st.session_state.conversation:
         with st.chat_message("user"):
             st.markdown(f"{entry['user']}") 

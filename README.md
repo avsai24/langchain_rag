@@ -1,2 +1,2 @@
 # langchain_rag
-Rag Application
+Welcome to Rag with LangChain!
